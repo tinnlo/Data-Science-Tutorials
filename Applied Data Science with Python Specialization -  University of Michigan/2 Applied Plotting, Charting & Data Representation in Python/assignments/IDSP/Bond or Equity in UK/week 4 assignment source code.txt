@@ -1,0 +1,103 @@
+import pandas as pd 
+import matplotlib.pyplot as plt
+import numpy as np 
+
+df_isf = pd.read_csv(r"C:\Users\vkory\Desktop\ISF.csv")
+df_igls = pd.read_csv(r"C:\Users\vkory\Desktop\IGLS.csv")
+
+
+
+#convert data to datetime format 
+
+df_isf['Date'] = pd.to_datetime(df_isf['Date'])
+df_igls['Date'] = pd.to_datetime(df_igls['Date'])
+
+#set data as index
+df_isf = df_isf.set_index('Date')
+df_igls = df_igls.set_index('Date')
+
+#clean up the return column name
+df_isf.rename(columns={'Total Return ': 'Price ISF'}, inplace=True)
+df_igls.rename(columns={'Total Return ': 'Price IGLS'}, inplace=True)
+
+
+#condense and merge the df's
+columns_to_keep_isf = ['Price ISF']
+columns_to_keep_igls = ['Price IGLS']
+
+df_isf = df_isf[columns_to_keep_isf]
+df_igls = df_igls[columns_to_keep_igls]
+
+df = pd.merge(df_isf, df_igls, how='right', on='Date')
+
+#add column for % return 
+
+start_isf = df['Price ISF'].iloc[0]
+start_igls = df['Price IGLS'].iloc[0]
+
+df['Percent Return ISF'] = ((df['Price ISF'] - start_isf) / start_isf) * 100
+df['Percent Return ISF'] = df['Percent Return ISF'].round(2)
+
+df['Percent Return IGLS'] = ((df['Price IGLS'] - start_igls) / start_igls) * 100
+df['Percent Return IGLS'] = df['Percent Return IGLS'].round(2)
+
+# get the final difference to show in the chart 
+final_diff = (df['Percent Return ISF'].iloc[-1] - df['Percent Return IGLS'].iloc[-1]).round(2)
+
+#reduce df to just the percent return columns 
+columns_to_keep_final = ['Percent Return ISF', 'Percent Return IGLS']
+df_final = df[columns_to_keep_final]
+
+#df.head()
+df_final.tail()
+#df.dtypes
+#df_isf.columns
+
+
+import matplotlib.gridspec as gridspec
+
+index = df_final.index
+ISF = df['Percent Return ISF']
+IGLS = df['Percent Return IGLS']
+
+
+fig, (ax1, ax2) = plt.subplots(2,1, figsize=(15, 9))
+gs = gridspec.GridSpec(2, 1, height_ratios=[75, 1])
+
+ax1 = plt.subplot(gs[0])
+ax1.plot(index, ISF, '-', label='Equity Return')
+ax1.plot(index, IGLS, '-', label='Bond Return')
+
+#ax1.fill_between(index, ISF, IGLS, where=(ISF > IGLS), alpha=0.3) #, color='grey'
+#ax1.fill_between(index, ISF, IGLS, where=(ISF <= IGLS), alpha=0.3) #, color='blue'
+
+text = 'Equities outperformed by ' + str(final_diff) + "%"
+ax1.annotate(text,
+             xy=(0.953, 0.89), 
+             xytext=(0.6, 0.925),  
+             arrowprops=dict(arrowstyle='->', lw=1.5, color='blue'),
+             fontsize=12,
+             bbox=dict(facecolor='white', alpha=0.5),
+             xycoords='axes fraction',  
+             textcoords='axes fraction'  
+            )      
+
+
+ax1.set_xlabel('Date', fontweight='bold')
+ax1.set_ylabel('Percent', fontweight='bold')
+ax1.set_title('UK Equity vs Bond Returns 2023', fontweight='bold')
+ax1.legend(loc='lower right', fontsize='large');
+
+
+ax2 = plt.subplot(gs[1])
+
+ax2.text(0.01, 0.01, '''
+
+*Equity Returns are found using the exchange traded fund ISF which tracks the performance of the FTSE100
+*Bond Returns are found using the exchange traded fund IGLS which tracks the performance of a portfolio of 0-5 government bonds
+*All dividends received are assumed to be reinvested''', fontsize=12, ha='left', va='center')
+
+
+ax2.axis('off')
+
+plt.show()
